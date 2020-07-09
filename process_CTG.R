@@ -13,7 +13,7 @@ project <- word(basename(base_dir), 1, -2, sep = fixed("_"))
 
 #---- Load the data ----
 # read in treatment meta
-meat_treat_path <- paste0(base_dir, "/mergedfile.txt")
+meta_treat_path <- paste0(base_dir, "/mergedfile.txt")
 treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(color = Color, 
                 replicate = Replicate,
