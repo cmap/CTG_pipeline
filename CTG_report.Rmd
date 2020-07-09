@@ -1,0 +1,202 @@
+---
+params:
+    data_file: "~/Desktop/MTS012_CTG/MTS012_ctg_viability_data.Rds"
+title: "`r basename(dirname(params$data_file))`"
+author: "Andrew Boghossian"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include = F, warning = F, error = F, message = F)
+library(plyr)
+library(tidyverse)
+library(ggthemes)
+theme_set(theme_bw(base_size = 12))
+suppressMessages(source("src/helperFunctions.R"))
+suppressMessages(source("src/make_dose_curves.R", chdir = T))
+
+project <- word(basename(dirname(params$data_file)), 1, -2, sep = fixed("_"))
+```
+
+```{r load data}
+normalized_data <- read_rds(params$data_file)
+```
+
+# Introduction
+
+This is a QC of the `r project` CTG plates.
+
+# Count and viability distributions
+
+Counts distributions:
+
+```{r, include = T, fig.width = 10, fig.height = 10}
+normalized_data %>% 
+    ggplot(aes(x = lum, color = pert_type)) + 
+    geom_density() +
+    geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+    scale_x_log10() +
+    ggtitle('Distribution of luminescence, separated by treatment type') +
+    scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+    facet_grid(ccle_name ~ replicate)
+```
+
+Viability distributions:
+
+```{r, include = T, fig.width = 10, fig.height = 10}
+normalized_data %>% 
+    ggplot(aes(x = viability, color = pert_type)) + 
+    geom_density() +
+    geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+    scale_x_log10()  + 
+    scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+    ggtitle('Distribution of luminescence, separated by treatment type') +
+    facet_grid(ccle_name ~ replicate)
+```
+
+
+# SSMDs
+
+SSMDs:
+
+```{r}
+ssmds <- normalized_data %>%
+    dplyr::group_by(arp_barcode) %>%
+    dplyr::summarise(ssmd = calculate_ssmd_robust(log_fc[pert_type == 'poscon'],
+                                                  log_fc[pert_type == 'negcon'])) %>%
+    dplyr::ungroup()
+```
+
+```{r, include = T}
+ssmds %>%
+    DT::datatable()
+
+ssmds %>%
+    ggplot(aes(x = ssmd)) + 
+    geom_histogram() + 
+    scale_x_continuous(limits = c(NA, 0)) + 
+    geom_vline(aes(xintercept = -2))
+```
+
+# Does viability decrease with dose?
+
+We can use spearman correlation to measure the monotonicity of dose vs viability. 
+
+Negative correlations indicate dose-response behavior.
+
+```{r, include = TRUE}
+spearman_correlations <- normalized_data %>%
+    dplyr::group_by(arp_barcode, broad_id, ccle_name, replicate) %>%
+    dplyr::filter(length(unique(dose)) > 4) %>%
+    dplyr::summarise(spearman = cor(viability, dose, method = 'spearman', use = 'p')) %>%
+    dplyr::ungroup()
+
+ggplot(spearman_correlations, aes(y = spearman, x = replicate)) + 
+    geom_boxplot() + 
+    theme(axis.text.x = element_text(angle = 45)) + 
+    facet_grid(. ~ ccle_name, scales = 'free')
+```
+
+# Expected sensitivity compounds 
+
+Comparison with past screens:
+
+```{r}
+# validation compound info
+val_compounds <- data.table::fread('val_compounds.csv', data.table = F) %>%
+    .$pert_id
+val_mapping <- data.table::fread('val_compounds.csv', data.table = F)
+
+# read in old MTS files and clean up to have same columns (lazy fix)
+old_mts_files <- list.files("old_processed_ctg_data", pattern = "*.Rds")
+old_mts_data <- old_mts_files %>%
+    purrr::set_names(str_sub(., 1, -5)) %>%
+    purrr::map_dfr(~read_rds(file.path("old_processed_ctg_data", .x)) %>%
+                       dplyr::select(ccle_name,
+                                     any_of(c("brd_id", "broad_sample",
+                                              "compound_plate", "plate_map_name",
+                                              "dose", "pert_dose", "mmoles_per_liter",
+                                              "pert_type", "trt_type")),
+                                     source, viability, log_fc),
+                   .id = "file") %>%
+    dplyr::mutate(broad_sample = ifelse(is.na(broad_sample), brd_id, broad_sample),
+                  dose = ifelse(is.na(dose), pert_dose, dose),
+                  dose = ifelse(is.na(dose), mmoles_per_liter, dose),
+                  plate_map_name = ifelse(is.na(plate_map_name), compound_plate, plate_map_name),
+                  pert_type = ifelse(is.na(pert_type), trt_type, pert_type)) %>%
+    dplyr::select(-brd_id, -pert_dose, -compound_plate, -trt_type, -mmoles_per_liter) %>%
+    dplyr::mutate(pert_id = brd_id_to_structure_id(broad_sample),
+                  plate_map_name = paste0(plate_map_name, " (", source, ")")) %>%
+    dplyr::rename(broad_id = broad_sample) %>%
+    dplyr::mutate(pert_id = ifelse(str_detect(pert_id, fixed('BRD-A12230535')),
+                                   "BRD-K73472992", pert_id))
+
+# filter old data to validation only
+old_mts_val <- old_mts_data %>% 
+    dplyr::inner_join(val_mapping)
+
+val_compound_ctg <- normalized_data %>%
+    dplyr::mutate(pert_id = brd_id_to_structure_id(broad_id)) %>%
+    dplyr::filter(pert_id %in% val_compounds)  %>%
+    dplyr::mutate(plate_map_name = paste0(plate_map_name, ' (MTS012)')) %>%
+    dplyr::inner_join(val_mapping)
+```
+
+```{r}
+# function to compare validation compounds of two screens
+make_val_compound_plot <- function(new_df, old_df, comp_name, dataset) {
+    
+    # load in new and old screens
+    new_df <- new_df %>%
+        dplyr::filter(pert_name == comp_name) %>%
+        dplyr::mutate(dose = as.numeric(dose))
+    old_df <- old_df %>%
+        dplyr::filter(source == dataset,
+                      pert_name == comp_name) %>%
+        dplyr::mutate(dose = as.numeric(dose))
+    
+    # compute median viabilities
+    new_median_viability <- new_df %>%
+        dplyr::group_by(ccle_name, dose, plate_map_name, source) %>%
+        dplyr::summarise(viability = median(viability, na.rm = T)) %>%
+        dplyr::ungroup()
+    old_median_viability <- old_df %>%
+        dplyr::group_by(ccle_name, dose, plate_map_name, source) %>%
+        dplyr::summarise(viability = median(viability, na.rm = T)) %>%
+        dplyr::ungroup()
+    
+    # combine
+    combined_viability <- dplyr::bind_rows(new_df, old_df)
+    combined_median_viability <- dplyr::bind_rows(new_median_viability, old_median_viability)
+    
+    # fit curves
+    curves <- combined_viability %>%
+        dplyr::mutate(pert_effective_dose = as.numeric(dose), grouping = 1) %>%
+        plyr::ddply(.(pert_name, plate_map_name, ccle_name), function(x) get_sigmoid(x, fitDoseCurve(x))) %>%
+        dplyr::mutate(dose = exp(x), viability = y)
+    
+    # plot
+    combined_viability %>%
+        ggplot(aes(x = dose, y = viability, color = plate_map_name)) + 
+        geom_point(alpha = .3) + 
+        geom_point(data = new_df) +
+        geom_line(data = dplyr::filter(curves, plate_map_name == 'S-C-7252-01-B40-032 (MTS012)')) +
+        geom_line(data = curves, alpha = .3) +
+        scale_x_log10() + 
+        facet_grid(. ~ ccle_name) + 
+        scale_color_tableau() +
+        ggtitle(paste(dataset, comp_name))
+}
+```
+
+```{r, fig.width = 10, fig.height = 8, include=T}
+compounds <- distinct(old_mts_val, pert_name, source) %>%
+    dplyr::filter(pert_name %in% unique(val_compound_ctg$pert_name)) %>%
+    dplyr::arrange(desc(source))
+
+for(i in 1:nrow(compounds)) {
+    print(make_val_compound_plot(val_compound_ctg, old_mts_val,
+                           compounds[[i, "pert_name"]], compounds[[i, "source"]]))
+}
+```
