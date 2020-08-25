@@ -1,4 +1,5 @@
 library(tidyverse)
+library(magrittr)
 
 # function to read data from EnSpire output to long table
 read_enspire <- function(data_path) {
