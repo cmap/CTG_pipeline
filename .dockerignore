@@ -1,0 +1,10 @@
+old_processed_ctg_data
+.Rproj.user
+.git
+.DS_store
+.gitignore
+.Rhistory
+CTG_pipeline.Rproj
+CTG_report*
+*.md
+*.csv
