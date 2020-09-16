@@ -39,7 +39,8 @@ plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
                 arp_barcode = `Assay Plate Barcode`,) %>%
   dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 
-combined_meta <- dplyr::left_join(plate_meta, treatment_meta)
+combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
+                                  by = c("plate_map_name", "Mapping", "replicate"))
 
 # read in raw data
 data_path <- list.files(base_dir, pattern = "*CTG_raw_data*", full.names = T)
@@ -47,15 +48,7 @@ raw_data <- read_enspire(data_path) %>%
   dplyr::mutate(Barcode = str_sub(Barcode, 2, -1)) %>%
   dplyr::rename(arp_barcode = Barcode,
                 Well_Position = Well) %>%
-  dplyr::full_join(combined_meta)
-
-# ctg_data_file_paths <- list.files(paste0(base_dir, "/data"))
-# raw_data <- ctg_data_file_paths %>%
-#   purrr::set_names(str_sub(., 1, 10)) %>%
-#   purrr::map_dfr(~read_enspire(file.path(base_dir, "data", .x)),
-#                  .id = "arp_barcode") %>%
-#   dplyr::mutate(`Dest Well` = paste0(row, col)) %>%
-#   dplyr::full_join(combined_meta)
+  dplyr::full_join(combined_meta, by = c("arp_barcode", "Well_Position"))
 
 if (nrow(raw_data) != nrow(combined_meta)) {
   stop("Something is weird with the meta mapping. The number of rows in the
