@@ -15,7 +15,6 @@ project <- script_args[3]
 #---- Load the data ----
 # read in treatment meta
 meta_treat_path <- list.files(base_dir, pattern = "mergedfile*", full.names = T)
-print(meta_treat_path)
 treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(broad_id = broad_sample,
                 dose = mmoles_per_liter,

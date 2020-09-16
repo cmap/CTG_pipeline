@@ -13,3 +13,8 @@ while getopts ":i:o:p:" arg; do
 done
 
 Rscript /process_CTG.R "${data_dir}" "${output_dir}" "${project}"
+
+exit_code=$?
+
+echo "$exit_code"
+exit $exit_code
