@@ -4,16 +4,18 @@ suppressMessages(source("src/make_dose_curves.R", chdir = T))
 
 # for commandline running
 script_args <- commandArgs(trailingOnly = TRUE)
-if (length(script_args) != 1) {
+if (length(script_args) != 3) {
   script_args <- c(readline(prompt = "Please supply path to data directory: "))
 }
 
 base_dir <- script_args[1]
-project <- word(basename(base_dir), 1, -2, sep = fixed("_"))
+output_dir <- script_args[2]
+project <- script_args[3]
 
 #---- Load the data ----
 # read in treatment meta
 meta_treat_path <- list.files(base_dir, pattern = "mergedfile*", full.names = T)
+print(meta_treat_path)
 treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(broad_id = broad_sample,
                 dose = mmoles_per_liter,
@@ -32,7 +34,7 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
 # read in plate meta
 meta_plate_path <- list.files(base_dir, pattern = "mapping*", full.names = T)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
-  dplyr::rename(plate_map_name = PLATE_MAP_NAME, 
+  dplyr::rename(plate_map_name = PLATE_MAP_NAME,
                 ccle_name = `Cell Line`,
                 replicate = Replicate,
                 arp_barcode = `Assay Plate Barcode`,) %>%
@@ -47,7 +49,7 @@ raw_data <- read_enspire(data_path) %>%
   dplyr::rename(arp_barcode = Barcode,
                 Well_Position = Well) %>%
   dplyr::full_join(combined_meta)
-  
+
 # ctg_data_file_paths <- list.files(paste0(base_dir, "/data"))
 # raw_data <- ctg_data_file_paths %>%
 #   purrr::set_names(str_sub(., 1, 10)) %>%
@@ -65,10 +67,10 @@ if (nrow(raw_data) != nrow(combined_meta)) {
 # normalize
 normalized_data <- raw_data %>%
   dplyr::group_by(arp_barcode, Mapping) %>%
-  dplyr::mutate(viability = 100 * (lum - median(lum[pert_type == 'poscon'])) / 
+  dplyr::mutate(viability = 100 * (lum - median(lum[pert_type == 'poscon'])) /
                   (median(lum[pert_type == 'negcon']) - median(lum[pert_type == 'poscon'])),
                 log_fc = log2(lum / median(lum[pert_type == 'negcon']))) %>%
   dplyr::ungroup()
 
 readr::write_rds(normalized_data,
-                 paste0(base_dir, "/", project, "_ctg_viability_data.Rds"))
+                 paste0(output_dir, "/", project, "_ctg_viability_data.Rds"))
