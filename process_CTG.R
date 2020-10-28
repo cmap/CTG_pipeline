@@ -28,7 +28,7 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
                            str_pad(str_sub(Well_Position, 2, -1), width = 2, pad = "0"))) %>%
-  dplyr::mutate(source = "project") %>%
+  dplyr::mutate(source = project) %>%
   dplyr::rename(pert_type = perturbation_type)
 
 # read in plate meta

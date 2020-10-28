@@ -216,11 +216,11 @@ make_val_compound_plot <- function(new_df, old_df, comp_name, dataset) {
   # compute median viabilities
   new_median_viability <- new_df %>%
     dplyr::group_by(ccle_name, dose, plate_map_name, source) %>%
-    dplyr::summarise(viability = median(viability, na.rm = T)) %>%
+    dplyr::summarise(viability = median(viability, na.rm = T), .groups = "drop") %>%
     dplyr::ungroup()
   old_median_viability <- old_df %>%
     dplyr::group_by(ccle_name, dose, plate_map_name, source) %>%
-    dplyr::summarise(viability = median(viability, na.rm = T)) %>%
+    dplyr::summarise(viability = median(viability, na.rm = T), .groups= "drop") %>%
     dplyr::ungroup()
   
   # combine
