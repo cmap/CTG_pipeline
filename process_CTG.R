@@ -14,7 +14,7 @@ project <- script_args[3]
 
 #---- Load the data ----
 # read in treatment meta
-meta_treat_path <- list.files(base_dir, pattern = "mergedfile*", full.names = T)
+meta_treat_path <- list.files(base_dir, pattern = "^mergedfile*", full.names = T)
 treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(broad_id = broad_sample,
                 dose = mmoles_per_liter,
@@ -31,7 +31,7 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(pert_type = perturbation_type)
 
 # read in plate meta
-meta_plate_path <- list.files(base_dir, pattern = "mapping*", full.names = T)
+meta_plate_path <- list.files(base_dir, pattern = "^mapping*", full.names = T)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
   dplyr::rename(plate_map_name = PLATE_MAP_NAME,
                 ccle_name = `Cell Line`,
@@ -43,7 +43,7 @@ combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
                                   by = c("plate_map_name", "Mapping", "replicate"))
 
 # read in raw data
-data_path <- list.files(base_dir, pattern = "*CTG_raw_data*", full.names = T)
+data_path <- list.files(base_dir, pattern = "^CTG_*", full.names = T)
 raw_data <- read_enspire(data_path) %>%
   dplyr::mutate(Barcode = str_sub(Barcode, 2, -1)) %>%
   dplyr::rename(arp_barcode = Barcode,
