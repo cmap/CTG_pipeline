@@ -1,10 +1,14 @@
 #!/bin/bash
 
 # read in flagged arguments
-while getopts ":i:o:p:" arg; do
+while getopts ":f:m:r:o:p:" arg; do
   case $arg in
-    i) # specify input folder
-      data_dir=${OPTARG};;
+    f) # specify mapping path
+      merged=${OPTARG};;
+    m) # specify mergedfile path
+      mapping=${OPTARG};;
+    r) # specify raw data path
+      raw=${OPTARG};;
     o) # specifcy output folder
       output_dir=${OPTARG};;
     p) # specify the name of the project
@@ -12,7 +16,7 @@ while getopts ":i:o:p:" arg; do
   esac
 done
 
-Rscript /process_CTG.R "${data_dir}" "${output_dir}" "${project}"
+Rscript /process_CTG.R "${merged}" "${mapping}" "${raw}" "${output_dir}" "${project}"
 
 exit_code=$?
 
