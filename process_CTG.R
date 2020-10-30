@@ -24,6 +24,7 @@ output_dir <- script_args[4]
 project <- script_args[5]
 
 # LOAD DATA ----
+print("Loading the meta data")
 # read in treatment meta (mergedfile)
 treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(broad_id = broad_sample,
@@ -31,14 +32,13 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
                 Mapping = Color,
                 Well_Position = "Dest Well",
                 replicate = Replicate) %>%
-  dplyr::mutate(perturbation_type = dplyr::case_when(
+  dplyr::mutate(pert_type = dplyr::case_when(
     str_detect(broad_id, fixed("BRD-K88510285")) & dose > 9.5 ~ "poscon",
     broad_id == "" ~ "negcon",
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
                            str_pad(str_sub(Well_Position, 2, -1), width = 2, pad = "0"))) %>%
-  dplyr::mutate(source = project) %>%
-  dplyr::rename(pert_type = perturbation_type)
+  dplyr::mutate(source = project)
 
 # read in plate meta (mapping)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
@@ -52,6 +52,7 @@ plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
 combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
                                   by = c("plate_map_name", "Mapping", "replicate"))
 
+print("Reading in raw data")
 # read in raw data (CTG...)
 raw_data <- read_enspire(data_path) %>%
   dplyr::mutate(Barcode = str_sub(Barcode, 2, -1)) %>%
@@ -66,6 +67,7 @@ if (nrow(raw_data) != nrow(combined_meta)) {
 }
 
 # CALCULATE VIABILITY and NORMALIZE ----
+print("Calculating viabilities")
 normalized_data <- raw_data %>%
   dplyr::group_by(arp_barcode, Mapping) %>%
   dplyr::mutate(viability = 100 * (lum - median(lum[pert_type == 'poscon'])) /
@@ -82,3 +84,5 @@ if (all(is.na(normalized_data$viability))) {
 # WRITE ----
 readr::write_rds(normalized_data,
                  paste0(output_dir, "/", project, "_ctg_viability_data.Rds"))
+print(paste("Results written to:",
+            paste0(output_dir, "/", project, "_ctg_viability_data.Rds")))
