@@ -23,6 +23,7 @@ data_path <- script_args[3]
 output_dir <- script_args[4]
 project <- script_args[5]
 
+if (!dir.exists(output_dir)) {dir.create(output_dir, recursive = T)}
 # LOAD DATA ----
 print("Loading the meta data")
 # read in treatment meta (mergedfile)
