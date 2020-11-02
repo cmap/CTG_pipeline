@@ -8,3 +8,5 @@ CTG_pipeline.Rproj
 CTG_report*
 *.md
 *.csv
+.idea
+docker_*.sh
