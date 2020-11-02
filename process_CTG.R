@@ -84,5 +84,7 @@ if (all(is.na(normalized_data$viability))) {
 # WRITE ----
 readr::write_rds(normalized_data,
                  paste0(output_dir, "/", project, "_ctg_viability_data.Rds"))
+readr::write_csv(normalized_data,
+                 paste0(output_dir, "/", project, "_ctg_viability_data"))
 print(paste("Results written to:",
             paste0(output_dir, "/", project, "_ctg_viability_data.Rds")))
