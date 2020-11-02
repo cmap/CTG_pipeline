@@ -1,0 +1,169 @@
+---
+params:
+    data_file: "~/Downloads/CTG_PBRANT/PBRANT_ctg_viability_data.Rds"
+title: "`r basename(dirname(params$data_file))`"
+author: "Andrew Boghossian"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include = F, warning = F, error = F, message = F,
+                      fig.width = 12)
+library(plyr)
+library(tidyverse)
+library(ggthemes)
+library(magrittr)
+library(future.apply)
+library(psych)
+theme_set(theme_bw(base_size = 12))
+suppressMessages(source("src/helperFunctions.R"))
+suppressMessages(source("src/make_dose_curves.R", chdir = T))
+
+project <- word(basename(dirname(params$data_file)), 2, -1, sep = fixed("_"))
+```
+
+```{r load data}
+normalized_data <- read_rds(params$data_file)
+if (all(is.na(normalized_data$plate_map_name)) &
+    "Source Barcode" %in% colnames(normalized_data)) {
+  normalized_data %<>% dplyr::mutate(plate_map_name = `Source Barcode`)
+}
+```
+
+# Introduction
+
+This is a QC of the `r project` CTG plates.
+
+# Luminescence and viability distributions {.tabset .tabset-pills}
+
+## Luminescence distributions
+
+```{r luminescence, include = T, fig.height = 10}
+normalized_data %>% 
+  ggplot(aes(x = lum, color = pert_type)) + 
+  geom_density() +
+  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+  scale_x_log10() +
+  labs(x = "Luminescence", y = "Density", color = "Type") +
+  ggtitle('Distribution of luminescence, separated by treatment type') +
+  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+  facet_grid(plate_map_name + replicate ~ ccle_name)
+```
+
+## Viability distributions (poscon normalized fold-change)
+
+```{r, include = T, fig.height = 10}
+normalized_data %>% 
+  ggplot(aes(x = viability, color = pert_type)) + 
+  geom_density() +
+  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+  scale_x_log10() +
+  labs(x = "Viability (poscon normalized)", y = "Density", color = "Type") +
+  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+  ggtitle('Distribution of viability, separated by treatment type') +
+  facet_grid(plate_map_name + replicate ~ ccle_name)
+```
+
+## Viability distributions (fold-change)
+
+```{r, include = T, fig.height = 10}
+normalized_data %>% 
+  ggplot(aes(x = 2^log_fc, color = pert_type)) + 
+  geom_density() +
+  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+  scale_x_log10() +
+  labs(x = "Viability", y = "Density", color = "Type") +
+  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+  ggtitle('Distribution of viability, separated by treatment type') +
+  facet_grid(plate_map_name + replicate ~ ccle_name)
+```
+
+# SSMDs
+
+```{r calc ssmd}
+ssmds <- normalized_data %>%
+  dplyr::group_by(arp_barcode, ccle_name, plate_map_name, replicate) %>%
+  dplyr::summarise(ssmd = calculate_ssmd_robust(log_fc[pert_type == 'poscon'],
+                                                log_fc[pert_type == 'negcon'])) %>%
+  dplyr::ungroup()
+```
+
+```{r ssmd plot, include = T}
+ssmds %>%
+  DT::datatable()
+
+ssmds %>%
+  ggplot(aes(x = ssmd, fill = paste(word(ccle_name, 1, sep = fixed("_")), plate_map_name, replicate))) + 
+  geom_histogram() + 
+  labs(x = "SSMD", y = "Count", fill = "Cell Line Replicate") +
+  scale_y_continuous(limits = c(0, NA)) +
+  geom_vline(aes(xintercept = -2), linetype = "dashed")
+```
+
+# Replicate correlations {.tabset .tabset-pills}
+
+## Viability (poscon normalized)
+```{r, include = T, fig.height=8}
+normalized_data %>%
+  dplyr::filter(pert_type != "treatment" | !is.na(dose)) %>%
+  tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
+                     names_from = c("plate_map_name", "replicate"),
+                     values_from = "viability",
+                     values_fn = median) %>%
+  dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
+  psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1))
+  
+```
+
+## Viability (log fold-change)
+```{r, include = T, fig.height=8}
+normalized_data %>%
+  dplyr::filter(!is.na(dose)) %>%
+  tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
+                     names_from = c("plate_map_name", "replicate"),
+                     values_from = "log_fc",
+                     values_fn = median) %>%
+  dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
+  psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1))
+  
+```
+
+# Does viability decrease with dose?
+
+## Spearman correlation
+
+We can use spearman correlation to measure the monotonicity of dose vs viability. 
+
+Negative correlations indicate dose-response behavior.
+
+```{r correlations, include = TRUE}
+spearman_correlations <- normalized_data %>%
+  dplyr::group_by(arp_barcode, broad_id, ccle_name, plate_map_name, replicate) %>%
+  dplyr::filter(length(unique(dose)) > 3) %>%
+  dplyr::summarise(spearman = cor(viability, dose, method = 'spearman', use = 'p')) %>%
+  dplyr::ungroup()
+
+ggplot(spearman_correlations, aes(y = spearman, x = replicate)) + 
+  geom_boxplot(aes(fill = replicate)) + 
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme(axis.text.x = element_text(angle = 45)) + 
+  scale_fill_tableau(guide = "none") +
+  facet_grid(plate_map_name ~ ccle_name, scales = 'free') +
+  labs(x = "Replicate", y = "Spearman Correlation")
+```
+
+## Treatment dose trends
+
+**Note:** these plots are limited to the range $[-5, 150]$ and exclude some outlying points (particularly negative values) on worse performing plates.
+
+```{r, include = T, fig.height = 160}
+normalized_data %>%
+  dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
+  ggplot(aes(x = dose, y = viability, color = arp_barcode)) +
+  geom_line() + geom_point() +
+  scale_x_log10() +
+  facet_wrap(broad_id ~ ccle_name, scales = "free_x", ncol = 6) +
+  labs(color = "Plate") +
+  ylim(c(-5, 150))
+```
