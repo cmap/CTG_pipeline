@@ -56,7 +56,7 @@ combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
 print("Reading in raw data")
 # read in raw data (CTG...)
 raw_data <- read_enspire(data_path) %>%
-  dplyr::mutate(Barcode = str_sub(Barcode, 2, -1)) %>%
+  dplyr::mutate(Barcode = str_replace_all(Barcode, "[^[:alnum:]]", "")) %>%
   dplyr::rename(arp_barcode = Barcode,
                 Well_Position = Well) %>%
   dplyr::full_join(combined_meta, by = c("arp_barcode", "Well_Position"))
