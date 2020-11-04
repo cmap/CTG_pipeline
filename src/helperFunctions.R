@@ -6,6 +6,7 @@ read_enspire <- function(data_path) {
   # read in raw file (fill and skip to allow for format)
   raw_data <- read.csv(data_path, fill = T, header = T,
                        skip = 1, blank.lines.skip = T, check.names = F)
+  raw_data <- raw_data[apply(raw_data, 1, function(x) !all(is.na(x) | x=="")), ]
   
   # get row where meta and data are separated
   split_row <- which(raw_data$Plate=="No background information available.")
