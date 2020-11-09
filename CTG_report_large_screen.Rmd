@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/CTG_PBRANT/PBRANT_ctg_viability_data.Rds"
+    data_file: "~/Downloads/CTG_BAYER/PBRANT_B_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
@@ -8,14 +8,16 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, include = F, warning = F, error = F, message = F,
-                      fig.width = 12)
+knitr::opts_chunk$set(echo = F, include = F, warning = F, error = F, message = F)
 library(plyr)
 library(tidyverse)
 library(ggthemes)
 library(magrittr)
 library(future.apply)
 library(psych)
+library(ComplexHeatmap)
+library(viridis)
+library(circlize)
 theme_set(theme_bw(base_size = 12))
 suppressMessages(source("src/helperFunctions.R"))
 suppressMessages(source("src/make_dose_curves.R", chdir = T))
@@ -37,46 +39,70 @@ This is a QC of the `r project` CTG plates.
 
 # Luminescence and viability distributions {.tabset .tabset-pills}
 
-## Luminescence distributions
+## Luminescence distributions {.tabset .tabset-fade}
 
-```{r luminescence, include = T, fig.height = 10}
-normalized_data %>% 
-  ggplot(aes(x = lum, color = pert_type)) + 
-  geom_density() +
-  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
-  scale_x_log10() +
-  labs(x = "Luminescence", y = "Density", color = "Type") +
-  ggtitle('Distribution of luminescence, separated by treatment type') +
-  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
-  facet_grid(plate_map_name + replicate ~ ccle_name)
+```{r luminescence, results = 'asis', include = T, fig.height = 20, fig.width=12}
+for (cur_plate in normalized_data$plate_map_name %>% unique()) {
+  cat(sprintf('\n\n### %s {.tabset .tabset-fade}\n\n', cur_plate, '\n\n'))
+  df <- normalized_data %>% dplyr::filter(plate_map_name == cur_plate)
+  
+  p <- df %>% 
+    ggplot(aes(x = lum, color = pert_type)) + 
+    geom_density() +
+    geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+    scale_x_log10() +
+    labs(x = "Luminescence", y = "Density", color = "Type") +
+    ggtitle('Distribution of luminescence, separated by treatment type') +
+    scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+    facet_grid(ccle_name ~ replicate, scales = "free_y")
+  
+  print(p)
+  cat("\n\n")
+}
 ```
 
-## Viability distributions (poscon normalized fold-change)
+## Viability distributions (poscon normalized fold-change) {.tabset .tabset-fade}
 
-```{r, include = T, fig.height = 10}
-normalized_data %>% 
-  ggplot(aes(x = viability, color = pert_type)) + 
-  geom_density() +
-  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
-  scale_x_log10() +
-  labs(x = "Viability (poscon normalized)", y = "Density", color = "Type") +
-  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
-  ggtitle('Distribution of viability, separated by treatment type') +
-  facet_grid(plate_map_name + replicate ~ ccle_name)
+```{r, results= 'asis', include = T, fig.height = 20, fig.width=12}
+for (cur_plate in normalized_data$plate_map_name %>% unique()) {
+  cat(sprintf('\n\n### %s {.tabset .tabset-fade}\n\n', cur_plate, '\n\n'))
+  df <- normalized_data %>% dplyr::filter(plate_map_name == cur_plate)
+  
+  p <- df %>% 
+    ggplot(aes(x = viability, color = pert_type)) + 
+    geom_density() +
+    geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+    scale_x_log10() +
+    labs(x = "Viability (poscon normalized)", y = "Density", color = "Type") +
+    scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+    ggtitle('Distribution of viability, separated by treatment type') +
+    facet_grid(ccle_name ~ replicate, scales = "free_y")
+  
+  print(p)
+  cat("\n\n")
+}
 ```
 
-## Viability distributions (fold-change)
+## Viability distributions (fold-change) {.tabset .tabset-fade}
 
-```{r, include = T, fig.height = 10}
-normalized_data %>% 
-  ggplot(aes(x = 2^log_fc, color = pert_type)) + 
-  geom_density() +
-  geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
-  scale_x_log10() +
-  labs(x = "Viability", y = "Density", color = "Type") +
-  scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
-  ggtitle('Distribution of viability, separated by treatment type') +
-  facet_grid(plate_map_name + replicate ~ ccle_name)
+```{r, results = 'asis', include = T, fig.height = 20, fig.width=12}
+for (cur_plate in normalized_data$plate_map_name %>% unique()) {
+  cat(sprintf('\n\n### %s {.tabset .tabset-fade}\n\n', cur_plate, '\n\n'))
+  df <- normalized_data %>% dplyr::filter(plate_map_name == cur_plate)
+  
+  p <- df %>% 
+    ggplot(aes(x = 2^log_fc, color = pert_type)) + 
+    geom_density() +
+    geom_histogram(aes( y = ..density.., fill = pert_type), alpha = .3, position = 'identity') + 
+    scale_x_log10() +
+    labs(x = "Viability", y = "Density", color = "Type") +
+    scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
+    ggtitle('Distribution of viability, separated by treatment type') +
+    facet_grid(ccle_name ~ replicate, scales = "free_y")
+  
+  print(p)
+  cat("\n\n")
+}
 ```
 
 # SSMDs
@@ -89,7 +115,7 @@ ssmds <- normalized_data %>%
   dplyr::ungroup()
 ```
 
-```{r ssmd plot, include = T}
+```{r ssmd plot, include = T, fig.width=12, fig.height=8}
 ssmds %>%
   DT::datatable()
 
@@ -97,6 +123,7 @@ ssmds %>%
   ggplot(aes(x = ssmd, fill = paste(word(ccle_name, 1, sep = fixed("_")), plate_map_name, replicate))) + 
   geom_histogram() + 
   labs(x = "SSMD", y = "Count", fill = "Cell Line Replicate") +
+  theme(legend.position = "none") +
   scale_y_continuous(limits = c(0, NA)) +
   geom_vline(aes(xintercept = -2), linetype = "dashed")
 ```
@@ -104,7 +131,7 @@ ssmds %>%
 # Replicate correlations {.tabset .tabset-pills}
 
 ## Viability (poscon normalized)
-```{r, include = T, fig.height=8}
+```{r, include = T, fig.height=12, fig.width=12}
 normalized_data %>%
   dplyr::filter(pert_type != "treatment" | !is.na(dose)) %>%
   tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
@@ -112,12 +139,12 @@ normalized_data %>%
                      values_from = "viability",
                      values_fn = median) %>%
   dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
-  psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1))
-  
+  psych::pairs.panels(ellipses = F, lm = T, hist.col = tableau_color_pal()(1))
+
 ```
 
 ## Viability (log fold-change)
-```{r, include = T, fig.height=8}
+```{r, include = T, fig.height=12, fig.width=12}
 normalized_data %>%
   dplyr::filter(!is.na(dose)) %>%
   tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
@@ -125,8 +152,8 @@ normalized_data %>%
                      values_from = "log_fc",
                      values_fn = median) %>%
   dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
-  psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1))
-  
+  psych::pairs.panels(ellipses = F, lm = T, hist.col = tableau_color_pal()(1))
+
 ```
 
 # Does viability decrease with dose?
@@ -137,11 +164,11 @@ We can use spearman correlation to measure the monotonicity of dose vs viability
 
 Negative correlations indicate dose-response behavior.
 
-```{r correlations, include = TRUE}
+```{r correlations, include = TRUE, fig.height=10, fig.width=24}
 spearman_correlations <- normalized_data %>%
   dplyr::group_by(arp_barcode, broad_id, ccle_name, plate_map_name, replicate) %>%
   dplyr::filter(length(unique(dose)) > 3) %>%
-  dplyr::summarise(spearman = cor(viability, dose, method = 'spearman', use = 'p')) %>%
+  dplyr::summarise(spearman = cor(viability, dose, method = 'spearman', use = 'p'), .groups = "drop") %>%
   dplyr::ungroup()
 
 ggplot(spearman_correlations, aes(y = spearman, x = replicate)) + 
@@ -153,17 +180,37 @@ ggplot(spearman_correlations, aes(y = spearman, x = replicate)) +
   labs(x = "Replicate", y = "Spearman Correlation")
 ```
 
-## Treatment dose trends
-
-**Note:** these plots are limited to the range $[-5, 150]$ and exclude some outlying points (particularly negative values) on worse performing plates.
-
-```{r, include = T, fig.height = 160}
-normalized_data %>%
-  dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
-  ggplot(aes(x = dose, y = viability, color = arp_barcode)) +
-  geom_line() + geom_point() +
-  scale_x_log10() +
-  facet_wrap(broad_id ~ ccle_name, scales = "free_x", ncol = 6) +
-  labs(color = "Plate") +
-  ylim(c(-5, 150))
+# Heatmaps {.tabset .tabset-pills}
+```{r, results='asis', include = T, fig.height=15, fig.width=8}
+for (cell_line in (normalized_data %>% 
+                   dplyr::filter(is.finite(lum)))$ccle_name %>% unique()) {
+  cat(sprintf('\n\n## %s {.tabset .tabset-pills}\n\n', cell_line, '\n\n'))
+  df <- normalized_data %>% dplyr::filter(ccle_name == cell_line) %>%
+    dplyr::mutate(plate_row = str_sub(Well_Position, 1, 1),
+                  plate_col = str_sub(Well_Position, 2, -1))
+  plots <- list(); ix <- 1
+  for (plate in df$arp_barcode %>% unique) {
+    plot_df <- df %>% 
+      dplyr::filter(arp_barcode == plate) %>%
+      dplyr::distinct(replicate, plate_row, plate_col, lum, pert_type) %>%
+      dplyr::arrange(plate_col, plate_row)
+    if (all(is.na(plot_df$lum))) next
+    rep <- unique(plot_df$replicate)
+    plot_mat <- plot_df %>%
+      reshape2::acast(plate_row ~ plate_col, value.var = "lum")
+    type_mat <- plot_df %>%
+      dplyr::mutate(pert_type = str_sub(pert_type, 1, 1)) %>%
+      reshape2::acast(plate_row ~ plate_col, value.var = "pert_type")
+    
+    p <- ComplexHeatmap::Heatmap(plot_mat, cluster_rows = F, cluster_columns = F,
+                                 heatmap_legend_param = list(title = "Luminescence"),
+                                 row_title = paste(plate, rep),
+                                 col = viridis(1000),
+                                 cell_fun = function(j, i, x, y, w, h, col) {grid.text(type_mat[i, j], x, y)})
+    plots[[ix]] <- p; ix <- ix +1
+  }
+  ht_list <- reduce(plots, `%v%`)
+  draw(ht_list, merge_legend = F, show_heatmap_legend = F)
+  cat("\n\n")
+}
 ```
