@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/CTG_BAYER/PBRANT_B_ctg_viability_data.Rds"
+    data_file: "~/Downloads/PBRANT_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
@@ -133,7 +133,8 @@ ssmds %>%
 ## Viability (poscon normalized)
 ```{r, include = T, fig.height=12, fig.width=12}
 normalized_data %>%
-  dplyr::filter(pert_type != "treatment" | !is.na(dose)) %>%
+  dplyr::filter(pert_type != "treatment" | !is.na(dose),
+                is.finite(viability)) %>%
   tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
                      names_from = c("plate_map_name", "replicate"),
                      values_from = "viability",
@@ -146,7 +147,7 @@ normalized_data %>%
 ## Viability (log fold-change)
 ```{r, include = T, fig.height=12, fig.width=12}
 normalized_data %>%
-  dplyr::filter(!is.na(dose)) %>%
+  dplyr::filter(!is.na(dose), is.finite(log_fc)) %>%
   tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
                      names_from = c("plate_map_name", "replicate"),
                      values_from = "log_fc",
