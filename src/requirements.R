@@ -1,4 +1,5 @@
 requirements = c("plyr",
+                 "glue",
                  "tidyverse",
                  "drc",
                  "magrittr",

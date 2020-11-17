@@ -10,3 +10,4 @@ CTG_report*
 *.csv
 .idea
 docker_*.sh
+CTG_report_large_screen*
