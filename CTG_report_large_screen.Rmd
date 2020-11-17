@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/PBRANT_ctg_viability_data.Rds"
+    data_file: "~/Downloads/PREP_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"

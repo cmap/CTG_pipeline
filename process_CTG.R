@@ -39,7 +39,8 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
                            str_pad(str_sub(Well_Position, 2, -1), width = 2, pad = "0"))) %>%
-  dplyr::mutate(source = project)
+  dplyr::mutate(source = project,
+                plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 
 # read in plate meta (mapping)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%

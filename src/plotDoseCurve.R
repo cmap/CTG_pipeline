@@ -21,8 +21,8 @@ plot_sigmoid <- function(data_dose_cpd, data_curved_cpd){
   df_mean_se <- data_dose_cpd %>% 
     dplyr::group_by(logdose) %>% 
     dplyr::summarise(mean = mean(viability), 
-              se = sd(viability)/sqrt(n()),
-              dose = mean(pert_effective_dose)) 
+                     se = sd(viability)/sqrt(n()),
+                     dose = mean(pert_effective_dose)) 
   
   # title <- paste0('erlotinib in ', data_curved_cpd$ccle_name,
   #                 '\n AUC = ', round(data_curved_cpd$auc, 2))
@@ -54,8 +54,8 @@ get_points <- function(data_dose_cpd){
   df_mean_se <- data_dose_cpd %>% 
     dplyr::group_by(logdose) %>% 
     dplyr::summarise(mean = mean(viability), 
-              se = sd(viability)/sqrt(n()),
-              dose = mean(pert_effective_dose)) 
+                     se = sd(viability)/sqrt(n()),
+                     dose = mean(pert_effective_dose)) 
 }
 
 plot_sigmoid_part <- function(data_dose_cpd, data_curved_cpd){
@@ -78,4 +78,15 @@ plot_sigmoid_part <- function(data_dose_cpd, data_curved_cpd){
     summarise(mean = mean(viability), 
               se = sd(viability)/sqrt(n()),
               dose = mean(pert_effective_dose)) 
+}
+
+get_sigmoid_grouped <- function(df, curve) {
+  df <- df %>% dplyr::filter(broad_id == curve$broad_id)
+  dose_range <- seq(min(log(df$dose)), log(25), length.out = 100)
+  df_sigmoid <- data.frame(x = dose_range, 
+                           y = sigmoid(dose_range, 
+                                       high = curve$upper_asym,
+                                       low = curve$lower_asym,
+                                       slope = curve$slope,
+                                       ec50 = curve$ec50))
 }
