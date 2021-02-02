@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/PREP/PREP_ctg_viability_data.Rds"
+    data_file: "~/Downloads/CTG_Calico_Low/CAL_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
@@ -209,7 +209,8 @@ for (cell_line in (normalized_data %>%
   cat(sprintf('\n\n## %s {.tabset .tabset-pills}\n\n', cell_line, '\n\n'))
   df <- normalized_data %>% dplyr::filter(ccle_name == cell_line) %>%
     dplyr::mutate(plate_row = str_sub(Well_Position, 1, 1),
-                  plate_col = str_sub(Well_Position, 2, -1))
+                  plate_col = str_sub(Well_Position, 2, -1)) %>%
+    dplyr::arrange(replicate)
   plots <- list(); ix <- 1
   for (plate in df$arp_barcode %>% unique) {
     plot_df <- df %>% 
