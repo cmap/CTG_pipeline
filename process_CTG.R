@@ -48,8 +48,7 @@ plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
                 ccle_name = `Cell Line`,
                 replicate = Replicate,
                 arp_barcode = `Assay Plate Barcode`,) %>%
-  dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"),
-                replicate = ifelse(is.integer(replicate), paste0("X", replicate), replicate))
+  dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 
 # join treatment and plate meta
 combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
