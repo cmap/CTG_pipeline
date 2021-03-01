@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/CTG_Calico_Low/CAL_ctg_viability_data.Rds"
+    data_file: "~/Downloads/MTS016_CTG/MTS016_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
