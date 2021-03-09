@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/MTS016_CTG/MTS016_ctg_viability_data.Rds"
+    data_file: "~/Downloads/MTS016_DP_CTG/MTS016_DP_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
@@ -147,10 +147,11 @@ ggplot(spearman_correlations, aes(y = spearman, x = replicate)) +
 ```{r, include = T, fig.width = 12, fig.height = 80}
 normalized_data %>%
   dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
+  dplyr::mutate(dose_2 = signif(dose_2, digits = 3)) %>%
   ggplot(aes(x = dose, y = viability, color = arp_barcode)) +
   geom_line() + geom_point() +
   scale_x_log10() +
-  facet_wrap(broad_id ~ word(ccle_name, 1, sep = fixed("_")),
+  facet_wrap(broad_id + broad_id_2 + dose_2 ~ word(ccle_name, 1, sep = fixed("_")),
              scales = "free_x", ncol = 6) +
   labs(color = "Plate") +
   scale_color_tableau(palette = "Tableau 20") +
