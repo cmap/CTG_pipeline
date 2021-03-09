@@ -16,7 +16,7 @@ while getopts ":f:m:r:o:p:" arg; do
   esac
 done
 
-Rscript /process_CTG.R "${merged}" "${mapping}" "${raw}" "${output_dir}" "${project}"
+Rscript ./process_CTG.R "${merged}" "${mapping}" "${raw}" "${output_dir}" "${project}"
 
 exit_code=$?
 
