@@ -64,7 +64,8 @@ normalized_data %>%
   geom_histogram(aes( y = ..density..), alpha = .5, position = 'identity') + 
   labs(x = "Luminescence", y = "Density", color = "Type") +
   ggtitle('Distribution of luminescence, separated by treatment type') +
-  facet_grid(plate_map_name + replicate ~ ccle_name + pert_type, scales = "free")
+  facet_grid(plate_map_name + replicate ~ word(ccle_name, 1, sep = fixed("_")) + pert_type,
+             scales = "free")
 ```
 
 ## Viability distributions
@@ -78,7 +79,7 @@ normalized_data %>%
   labs(x = "Viability", y = "Density", color = "Type") +
   scale_color_tableau(guide = "none") + scale_fill_tableau(name = "pert_type") +
   ggtitle('Distribution of viability, separated by treatment type') +
-  facet_grid(plate_map_name + replicate ~ ccle_name)
+  facet_grid(plate_map_name + replicate ~ word(ccle_name, 1, sep = fixed("_")))
 ```
 
 # SSMDs
@@ -137,7 +138,7 @@ ggplot(spearman_correlations, aes(y = spearman, x = replicate)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   theme(axis.text.x = element_text(angle = 45)) + 
   scale_fill_tableau(guide = "none") +
-  facet_grid(plate_map_name ~ ccle_name, scales = 'free') +
+  facet_grid(plate_map_name ~ word(ccle_name, 1, sep = fixed("_")), scales = 'free') +
   labs(x = "Replicate", y = "Spearman Correlation")
 ```
 
@@ -149,7 +150,8 @@ normalized_data %>%
   ggplot(aes(x = dose, y = viability, color = arp_barcode)) +
   geom_line() + geom_point() +
   scale_x_log10() +
-  facet_wrap(broad_id ~ ccle_name, scales = "free_x", ncol = 6) +
+  facet_wrap(broad_id ~ word(ccle_name, 1, sep = fixed("_")),
+             scales = "free_x", ncol = 6) +
   labs(color = "Plate") +
   scale_color_tableau(palette = "Tableau 20") +
   ylim(c(-5, 150))

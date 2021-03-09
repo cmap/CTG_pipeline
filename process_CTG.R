@@ -42,6 +42,11 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::mutate(source = project,
                 plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 
+if ("broad_sample_2" %in% colnames(treatment_meta)) {
+  treatment_meta %<>%
+    dplyr::rename(broad_id_2 = broad_sample_2, dose_2 = mmoles_per_liter_2)
+}
+
 # read in plate meta (mapping)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
   dplyr::rename(plate_map_name = PLATE_MAP_NAME,
