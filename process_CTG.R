@@ -35,7 +35,7 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
                 replicate = Replicate) %>%
   dplyr::mutate(pert_type = dplyr::case_when(
     str_detect(broad_id, fixed("BRD-K88510285")) & dose > 9.5 ~ "poscon",
-    broad_id == "" ~ "negcon",
+    broad_id == "" | broad_id == "DMSO" ~ "negcon",
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
                            str_pad(str_sub(Well_Position, 2, -1), width = 2, pad = "0"))) %>%
