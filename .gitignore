@@ -41,3 +41,6 @@ vignettes/*.pdf
 # .html reports
 *report*.html
 .idea
+
+# old data
+old_processed_ctg_data
