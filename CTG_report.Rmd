@@ -241,7 +241,8 @@ make_val_compound_plot <- function(new_df, old_df, comp_name, dataset) {
   # fit curves
   curves <- combined_viability %>%
     dplyr::mutate(pert_effective_dose = as.numeric(dose), grouping = 1) %>%
-    plyr::ddply(.(pert_name, plate_map_name, ccle_name), function(x) get_sigmoid(x, fitDoseCurve(x))) %>%
+    plyr::ddply(.(pert_name, plate_map_name, ccle_name),
+                function(x) get_sigmoid(x, fitDoseCurve(x))) %>%
     dplyr::mutate(dose = exp(x), viability = y)
   
   # plot
