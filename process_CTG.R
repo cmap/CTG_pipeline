@@ -39,7 +39,7 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
                            str_pad(str_sub(Well_Position, 2, -1), width = 2, pad = "0"))) %>%
-  dplyr::mutate(source = project,
+  dplyr::mutate(source = project, Replicate = toString(Replicate),
                 plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 
 if ("broad_sample_2" %in% colnames(treatment_meta)) {
@@ -53,7 +53,8 @@ plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
                 ccle_name = `Cell Line`,
                 replicate = Replicate,
                 arp_barcode = `Assay Plate Barcode`,) %>%
-  dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
+  dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"),
+                Replicate = toString(Replicate))
 if(is.integer(plate_meta$replicate)) {
   plate_meta$replicate <- paste0("X", plate_meta$replicate)
 }
