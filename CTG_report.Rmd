@@ -1,6 +1,6 @@
 ---
 params:
-    data_file: "~/Downloads/MTS016_DP_CTG/MTS016_DP_ctg_viability_data.Rds"
+    data_file: "/Volumes/cmap_obelix/pod/custom/CPS/jdwork/CPS004/CPS004_ctg_viability_data.Rds"
 title: "`r basename(dirname(params$data_file))`"
 author: "Andrew Boghossian"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
@@ -43,7 +43,7 @@ This is a QC of the `r project` CTG plates.
 
 ## Luminescence distributions
 
-```{r luminescence, include = T, fig.width = 10, fig.height = 10}
+```{r luminescence, include = T, fig.width = 10, fig.height = 8}
 normalized_data %>% 
   ggplot(aes(x = lum, color = pert_type)) + 
   geom_density() +
@@ -57,7 +57,7 @@ normalized_data %>%
 
 ## Control luminescence distributions
 
-```{r, include=T, fig.width=10, fig.height=10}
+```{r, include=T, fig.width=10, fig.height=8}
 normalized_data %>%
   dplyr::filter(pert_type != "treatment") %>%
   ggplot(aes(x = lum)) + 
@@ -70,7 +70,7 @@ normalized_data %>%
 
 ## Viability distributions
 
-```{r viability, include = T, fig.width = 10, fig.height = 10}
+```{r viability, include = T, fig.width = 10, fig.height = 8}
 normalized_data %>% 
   ggplot(aes(x = viability, color = pert_type)) + 
   geom_density() +
@@ -100,22 +100,37 @@ ssmds %>%
   ggplot(aes(x = ssmd, fill = paste(word(ccle_name, 1, sep = fixed("_")), plate_map_name, replicate))) + 
   geom_histogram() + 
   labs(x = "SSMD", y = "Count", fill = "Cell Line Replicate") +
-  scale_fill_tableau(palette = "Tableau 20") +
   scale_y_continuous(limits = c(0, NA)) +
   geom_vline(aes(xintercept = -2), linetype = "dashed")
 ```
 
 # Replicate correlations
 ```{r, include = T, fig.height=8}
-normalized_data %>%
-  dplyr::filter(pert_type != "treatment" | !is.na(dose)) %>%
-  tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
-                     names_from = c("plate_map_name", "replicate"),
-                     values_from = "viability",
-                     values_fn = median) %>%
-  dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
-  psych::pairs.panels(ellipses = F, lm = T, hist.col = tableau_color_pal()(1))
-  
+if (length(normalized_data$replicate %>% unique()) > 1) {
+  normalized_data %>%
+    dplyr::filter(pert_type != "treatment" | !is.na(dose), is.finite(viability)) %>%
+    tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
+                       names_from = c("plate_map_name", "replicate"),
+                       values_from = "viability",
+                       values_fn = median) %>%
+    dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
+    .[, apply(., 2, function(x) sum(!is.na(x)) > 4)] %>%
+    psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1)) 
+} else {
+  normalized_data %>%
+    dplyr::filter(pert_type != "treatment" | !is.na(dose), is.finite(viability)) %>%
+    dplyr::group_by(ccle_name, pert_type, dose, broad_id) %>%
+    dplyr::mutate(fake_rep = 1:n()) %>%
+    dplyr::ungroup() %>%
+    tidyr::pivot_wider(id_cols = c("ccle_name", "pert_type", "dose", "broad_id"),
+                       names_from = c("plate_map_name", "fake_rep"),
+                       values_from = "viability",
+                       values_fn = median) %>%
+    dplyr::select(-ccle_name, -dose, -pert_type, -broad_id) %>%
+    .[, apply(., 2, function(x) sum(!is.na(x)) > 4)] %>%
+    psych::pairs.panels(ellipses = F, hist.col = tableau_color_pal()(1))
+}
+
 ```
 
 # Does viability decrease with dose?
@@ -130,7 +145,7 @@ Negative correlations indicate dose-response behavior.
 spearman_correlations <- normalized_data %>%
   dplyr::group_by(arp_barcode, broad_id, ccle_name, plate_map_name, replicate) %>%
   dplyr::filter(length(unique(dose)) > 3) %>%
-  dplyr::summarise(spearman = cor(viability, dose, method = 'spearman', use = 'p')) %>%
+  dplyr::summarise(spearman = cor(viability, as.numeric(dose), method = 'spearman', use = 'p')) %>%
   dplyr::ungroup()
 
 ggplot(spearman_correlations, aes(y = spearman, x = replicate)) + 
@@ -144,18 +159,33 @@ ggplot(spearman_correlations, aes(y = spearman, x = replicate)) +
 
 ## Treatment dose trends
 
-```{r, include = T, fig.width = 12, fig.height = 80}
-normalized_data %>%
-  dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
-  dplyr::mutate(dose_2 = signif(dose_2, digits = 3)) %>%
-  ggplot(aes(x = dose, y = viability, color = arp_barcode)) +
-  geom_line() + geom_point() +
-  scale_x_log10() +
-  facet_wrap(broad_id + broad_id_2 + dose_2 ~ word(ccle_name, 1, sep = fixed("_")),
-             scales = "free_x", ncol = 6) +
-  labs(color = "Plate") +
-  scale_color_tableau(palette = "Tableau 20") +
-  ylim(c(-5, 150))
+```{r, include = T, fig.width = 12, fig.height = 12}
+if ("dose_2" %in% colnames(normalized_data)) {
+  normalized_data %>%
+    dplyr::mutate(dose = as.numeric(dose)) %>%
+    dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
+    dplyr::mutate(dose_2 = signif(dose_2, digits = 3)) %>%
+    ggplot(aes(x = dose, y = viability, color = plate_map_name)) +
+    geom_smooth() + geom_point() +
+    scale_x_log10() +
+    facet_wrap(broad_id + broad_id_2 + dose_2 ~ word(ccle_name, 1, sep = fixed("_")),
+               scales = "free_x", ncol = 6) +
+    labs(color = "Plate") +
+    scale_color_tableau(palette = "Tableau 20") +
+    ylim(c(-5, 150))
+} else {
+  normalized_data %>%
+    dplyr::mutate(dose = as.numeric(dose)) %>%
+    dplyr::filter(pert_type == "treatment", !is.na(dose)) %>%
+    ggplot(aes(x = dose, y = viability, color = plate_map_name)) +
+    geom_smooth() + geom_point() +
+    scale_x_log10() +
+    facet_wrap(broad_id ~ word(ccle_name, 1, sep = fixed("_")),
+               scales = "free_x", ncol = 6) +
+    labs(color = "Plate") +
+    scale_color_tableau(palette = "Tableau 20") +
+    ylim(c(-5, 150))
+}
 ```
 **Note:** these plots are limited to the range $[-5, 150]$ and exclude some outlying points (particularly negative values) on worse performing plates.
 
@@ -203,10 +233,11 @@ old_mts_val <- old_mts_data %>%
 
 val_compound_ctg <- normalized_data %>%
   dplyr::mutate(pert_id = brd_id_to_structure_id(broad_id)) %>%
-  dplyr::filter(pert_id %in% val_compounds)  %>%
+  dplyr::filter(pert_id %in% val_compounds) %>%
   dplyr::mutate(plate_map_name = paste0(plate_map_name, " (", project, ")")) %>%
   dplyr::mutate(ccle_name = word(ccle_name, 1, sep = fixed("_")),
                 ccle_name = str_replace_all(ccle_name, "[^[:alnum:] ]", "")) %>%
+  dplyr::select(-any_of(c("pert_name"))) %>%
   dplyr::inner_join(val_mapping)
 ```
 
@@ -263,14 +294,18 @@ compounds <- distinct(old_mts_val, pert_name, source) %>%
   dplyr::filter(pert_name %in% unique(val_compound_ctg$pert_name)) %>%
   dplyr::arrange(desc(source))
 
-comp_plots <- future_apply(compounds, 1,
-                           FUN = function(x) make_val_compound_plot(val_compound_ctg, old_mts_val,
-                                                                    x["pert_name"], x["source"]))
+if (nrow(compounds) > 0) {
+  comp_plots <- future_apply(compounds, 1,
+                             FUN = function(x) make_val_compound_plot(val_compound_ctg, old_mts_val,
+                                                                      x["pert_name"], x["source"])) 
+}
 ```
 
 ```{r comparison plots, fig.width = 10, fig.height = 4, include=T}
-for(p in comp_plots) {
-  print(p)
+if (nrow(compounds) > 0 ) {
+  for(p in comp_plots) {
+    print(p)
+  } 
 }
 ```
 

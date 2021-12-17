@@ -31,10 +31,10 @@ treatment_meta <- data.table::fread(meta_treat_path, data.table = F) %>%
   dplyr::rename(broad_id = broad_sample,
                 dose = mmoles_per_liter,
                 Mapping = Color,
-                Well_Position = "Dest Well",
-                replicate = Replicate) %>%
+                replicate = Replicate,
+                Well_Position = "Dest Well") %>%
   dplyr::mutate(pert_type = dplyr::case_when(
-    str_detect(broad_id, fixed("BRD-K88510285")) & dose > 9.5 ~ "poscon",
+    str_detect(broad_id, fixed("BRD-K88510285")) & as.numeric(dose) > 9.5 ~ "poscon",
     broad_id == "" | broad_id == "DMSO" ~ "negcon",
     T ~ "treatment"),
     Well_Position = paste0(str_sub(Well_Position, 1, 1),
@@ -51,10 +51,10 @@ if (is.numeric(treatment_meta$replicate)) {
 
 # read in plate meta (mapping)
 plate_meta <- data.table::fread(meta_plate_path, data.table = F) %>%
-  dplyr::rename(plate_map_name = PLATE_MAP_NAME,
-                ccle_name = `Cell Line`,
+  dplyr::rename(ccle_name = `Cell Line`,
                 replicate = Replicate,
-                arp_barcode = `Assay Plate Barcode`,) %>%
+                arp_barcode = `Assay Plate Barcode`,
+                Mapping = Color) %>%
   dplyr::mutate(plate_map_name = str_replace_all(plate_map_name, fixed("_"), "-"))
 if (is.numeric(plate_meta$replicate)) {
   plate_meta$replicate <- paste0("X", plate_meta$replicate)
@@ -62,7 +62,8 @@ if (is.numeric(plate_meta$replicate)) {
 
 # join treatment and plate meta
 combined_meta <- dplyr::left_join(plate_meta, treatment_meta,
-                                  by = c("plate_map_name", "Mapping", "replicate"))
+                                  by = c("plate_map_name", "Mapping", "replicate")) %>%
+  dplyr::mutate(arp_barcode = as.character(arp_barcode))
 
 print("Reading in raw data")
 # read in raw data (CTG...)

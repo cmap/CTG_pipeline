@@ -4,7 +4,7 @@ library(magrittr)
 # function to read data from EnSpire output to long table
 read_enspire <- function(data_path) {
   # read in raw file (fill and skip to allow for format)
-  raw_data <- read.csv(data_path, fill = T, header = T,
+  raw_data <- read.delim(data_path, fill = T, header = T, sep = "\t",
                        skip = 1, blank.lines.skip = T, check.names = F)
   raw_data <- raw_data[apply(raw_data, 1, function(x) !all(is.na(x) | x=="")), ]
   
